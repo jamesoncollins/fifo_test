@@ -3,12 +3,11 @@
 Demonstrates an issue with SSH logins when running a program that uses many
 SCHED_FIFO threads and gtk3 file choosers.
 
-This program will create NUM_CPU-2 threads, locked to cores, that will
-utilize 100% of those cores.
-
-* Pass the option 'fifo' to use SCHED_FIFO for each thread.
+* Pass the option 'fifo' to start a SCHED_FIFO thread
 * Pass 'gtk' to have gtk be initialized.
 * Pass 'fc' to initialize gtk and a file chooser dialog
+* Pass 'sock' to simulate the netlink socket call that fails inside SSH when
+it calls getaddrinfo with AF_UNSPEC
 
 Note that the application will not actually display a window
 
@@ -21,14 +20,11 @@ Note that the application will not actually display a window
 
 ## Running
 
-Run this application as `./fifo_make fifo` and attempted to login via ssh.
-It doesn't matter whether the login is succesful (you can cancel out of the
-password prompt).  Do this >100 times.
+Run `./fifo_make fifo`, `./fifo_make fc`, and then `./fifo_make sock`
 
-Run the application again as `./fifo_make fifo fc` and try to login again
-via ssh.  You should see that the login hangs after between 30 and 100
-attempts.
+After about 30 seconds the sock thread will hang.
 
-The ssh attempt does not have to be made from a remote machine.  
-`ssh localhost` will also show the problem.
+You could also test this by trying to login to SSH, which will also hang if 
+you server doesn't specify an IPv4 type.
+
  

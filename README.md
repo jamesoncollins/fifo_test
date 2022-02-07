@@ -6,8 +6,7 @@ SCHED_FIFO threads and gtk3 file choosers.
 * Pass the option 'fifo' to start a SCHED_FIFO thread
 * Pass 'gtk' to have gtk be initialized.
 * Pass 'fc' to initialize gtk and a file chooser dialog
-* Pass 'sock' to simulate the netlink socket call that fails inside SSH when
-it calls getaddrinfo with AF_UNSPEC
+* Pass 'sock' to simulate the netlink socket call that fails inside SSH
 
 Note that the application will not actually display a window
 

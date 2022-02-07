@@ -53,14 +53,12 @@ int main(int argc, char *argv[])
         sock_func();
     }
 
-
     if(fifo_en)
     {
         int status;
         unsigned long threadid;
         int *id = (int*)malloc(sizeof(int));
         *id = 1;
-
         //status = pthread_create(&threadid, NULL, thread_func, (void*)id);
         thread_func(id);
         printf("status %d \n", status);
@@ -108,7 +106,7 @@ void sock_func()
 
         struct ifaddrmsg *ifa;
         ifa = (struct ifaddrmsg*)NLMSG_DATA(nl);
-        ifa->ifa_family = AF_UNSPEC;
+        ifa->ifa_family = AF_INET;
 
         // prepare struct msghdr for sending.
         struct iovec iov = { nl, nl->nlmsg_len };

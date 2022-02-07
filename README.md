@@ -22,7 +22,7 @@ Note that the application will not actually display a window
 
 Run `./fifo_make fifo`, `./fifo_make sock`, and then `./fifo_make fc`
 
-After about 30 seconds after calling `./fifo_make fc` then `./fifo_make sock`
+After about 30 seconds after calling `./fifo_make fc` the `./fifo_make sock`
 thread will hang.
 
 You could also test this by trying to login to SSH, which will also hang if 

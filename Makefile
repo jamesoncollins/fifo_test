@@ -1,6 +1,6 @@
 
 OBJS = fifo_make.o
-CFLAGS += -ggdb3 -O0 -lpthread `pkg-config --cflags --libs gtk+-3.0 gio-2.0 gmodule-export-2.0`
+CFLAGS += -ggdb3 -O0 -std=c++11 `pkg-config --cflags --libs gtk+-3.0 gio-2.0 gmodule-export-2.0`
 CPPFLAGS += $(CFLAGS)
 
 all:	fifo_make

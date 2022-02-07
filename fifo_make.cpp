@@ -3,17 +3,28 @@
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/syscall.h>   /* For SYS_xxx definitions */
 #include <gtk/gtk.h>
 #include <stdlib.h>
+#include <asm/types.h>
+#include <linux/netlink.h>
+#include <sys/types.h>          /* See NOTES */
+#include <sys/socket.h>
+#include <linux/rtnetlink.h>
+
+
 using namespace std;
 
-void *thread_func(void *args);
+void *thread_func(void *);
+void sock_func();
+
 
 int main(int argc, char *argv[])
 {
     bool gtk_en = false;
     bool fc_en = false;
     bool fifo_en = false;
+    bool sock_en = false;
 
     for(int i=0; i<argc; i++)
     {
@@ -30,35 +41,28 @@ int main(int argc, char *argv[])
         {
             fifo_en = true;
         }
+        else if(strcmp("sock", argv[i])==0)
+        {
+            sock_en = true;
+        }
     }
 
-    pthread_attr_t pthread_attr;
-    struct sched_param param;
-    (void)pthread_attr_init(&pthread_attr);
-    (void)pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_JOINABLE);
-    pthread_attr_setinheritsched(&pthread_attr, PTHREAD_EXPLICIT_SCHED);
+    if(sock_en)
+    {
+        sock_func();
+    }
 
     if(fifo_en)
     {
-        cout << "setting sched fifo" << endl;
-        pthread_attr_setschedpolicy(&pthread_attr, SCHED_FIFO); // also, SCHED_RR
-        param.sched_priority = 1;
-        pthread_attr_setschedparam(&pthread_attr, &param);
-    }
-
-    int num_proc = sysconf(_SC_NPROCESSORS_ONLN);
-
-    for(int i=min(2,num_proc-1); i<num_proc; i++)
-    {
-        unsigned long threadid;
-        cpu_set_t cpuset;
-        size_t cpusetsize = sizeof(cpu_set_t);
-        CPU_ZERO(&cpuset);
-        CPU_SET(i, &cpuset);
-        int status = pthread_attr_setaffinity_np(&pthread_attr, cpusetsize, &cpuset);
-        status |= pthread_create(&threadid, &pthread_attr, thread_func, NULL);
-        if(status)
-            throw "pthread error";
+        for(int i=1; i<sysconf(_SC_NPROCESSORS_ONLN); i++)
+        {
+            unsigned long threadid;
+            int *id = (int*)malloc(sizeof(int));
+            *id = i;
+            pthread_create(&threadid, NULL, thread_func, (void*)id);
+        }
+        while(1)
+            usleep(10000);
     }
 
     if(gtk_en)
@@ -72,21 +76,66 @@ int main(int argc, char *argv[])
         }
         gtk_main();
     }
-    else
-    {
-        while(1)
-        {
-            usleep(100);
-            sched_yield();
-        }
-    }
 
     return 0;
 
 }
 
+void sock_func()
+{
+    int ind = 0;
+
+    struct sockaddr_nl sa;
+    static int sequence_number = 0;
+    int status = 0;
+
+    memset(&sa, 0, sizeof(sa));
+    sa.nl_family = AF_NETLINK;
+    sa.nl_groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
+
+    int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+    status = bind(fd, (struct sockaddr *) &sa, sizeof(sa));
+
+    while(1)
+    {
+        printf("sock send %d\n", ind++);
+
+        struct nlmsghdr nh;
+        nh.nlmsg_pid = 0;
+        nh.nlmsg_seq = ++sequence_number;
+        nh.nlmsg_len = sizeof(struct nlmsghdr);
+        //nh.nlmsg_flags |= NLM_F_ACK;
+        struct iovec iov = { &nh, nh.nlmsg_len };
+        struct msghdr msg;
+
+        msg = { &sa, sizeof(sa), &iov, 1, NULL, 0, 0};
+        memset(&sa, 0, sizeof(sa));
+        sa.nl_family = AF_NETLINK;
+        status = sendmsg(fd, &msg, 0);
+
+        usleep(1000000);
+
+    }
+
+    close(fd);
+}
+
 void *thread_func(void *args)
 {
+    int cpuid = *(int *)args;
+    printf("forked to cpu %d \n", cpuid);
+
+    int pid = syscall(SYS_gettid);
+    cpu_set_t cpuset;
+    size_t cpusetsize = sizeof(cpu_set_t);
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpuid, &cpuset);
+    sched_setaffinity(pid, cpusetsize, &cpuset);
+
+    struct sched_param param;
+    param.sched_priority = 1;
+    int status = sched_setscheduler(pid, SCHED_FIFO, &param);
+
     int num_values = 200;
     int *test = (int *) calloc(num_values, 1);
     while(1)
